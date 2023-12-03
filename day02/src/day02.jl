@@ -6,7 +6,7 @@ function parse_file(file_name, bag_size)
       game_id_controlsum=0
       game_min_controlsum=0
       colors= Dict("blue" => 0, "green" => 0, "red" => 0)
-      games= Dict()
+      games=  Dict{Int, Int}()
       # Transliterated fortran main subroutine
       for line in readlines(file_name)
             columns = split(line, ":")
