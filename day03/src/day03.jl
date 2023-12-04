@@ -8,8 +8,7 @@ struct Field
       num::Int  
       idx::Int
       adj::Bool
-
-end
+end   
 function identifier(x::Field)
       y = string(x.id) * "_" * string(x.idx)
       return y
