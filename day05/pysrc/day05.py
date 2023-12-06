@@ -20,6 +20,31 @@ def find_location(value):
               return value   # This is the value of location
         map=mapper[mapname]
 
+def fix_map():
+    newmap={}
+    for key in mapper.keys():
+        map=mapper[key]
+        newmap[map['destin']]=mapper[key]
+    print("new",newmap)
+    return newmap
+
+def find_seed(maps, value):
+    mapname="location"
+    map = maps[mapname]
+    while 1:
+        found=-1
+        for elem in map['data']:
+            if value >= elem[0] and value < (elem[0] + elem[2]):
+                found = value + elem[1]  - elem[0]
+                break
+        if found==-1:
+            found=value
+        value=found
+        mapname=map['source']
+        if mapname=="seed":
+              return value   # This is the value of location
+        map=maps[mapname]
+
 def parse_file(filename):
     counter=1
     current = ""
@@ -64,7 +89,28 @@ def parse_file(filename):
             if bestloc==-1 or loc<bestloc:
                 bestloc=loc
     print("Best loc ", bestloc)
+    return
+    maps=fix_map()
+    locs=maps['location']
+    loclist=[]
+    print(seeds)
+    for l in locs['data']:
+        print(l)
+        for x in range(l[1], l[1] + l[2]):
+            z = find_seed(maps, x)
+            print(x, z)
+        for x in range(0, l[1]):
+            z = find_seed(maps, x)
+            print(x, z)
+
+
+    for i in range(100):
+        x=find_seed(maps, i)
+        for s in seeds:
+            if x>=s[0] and x<s[1]:
+                print("Found range ", i, x, s[0], s[1])
+        print(i, x)
 
 if __name__ == '__main__':
-    parse_file("./sample.txt")
+    parse_file("./input.txt")
 

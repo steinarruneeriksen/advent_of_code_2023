@@ -13,6 +13,10 @@ mutable struct FieldMap
       to_type::String
 end
 
+mutable struct Pair
+      from_value::Int
+      until_value::Int
+end
 
 function update_map(map::FieldMap, line::String)
       idxes = [ match.match for match in eachmatch(r"\d+", line)]
@@ -25,11 +29,9 @@ end
 function find_location(seed, mapname, maps::Dict{String,FieldMap})
       map=maps[mapname]
       value=seed
-      
       while true
             found=-1
             for elem in map.map_data
-                  println("COMP ", elem.source," ",elem.count)
                   if value>= elem.source && value < (elem.source  + elem.count)
                         println("Found ",value," ", elem.destination, " ", elem.source)
                         found=value + elem.destination - elem.source
@@ -39,7 +41,6 @@ function find_location(seed, mapname, maps::Dict{String,FieldMap})
             if found==-1
                   found=value  # If it was not in special rules, use same value
             end
-            println("FOUND" , found)
             value=found
             mapname=map.to_type
             if mapname=="location"
@@ -50,6 +51,43 @@ function find_location(seed, mapname, maps::Dict{String,FieldMap})
 end
 
 
+function find_location_pair(seed, mapname, maps::Dict{String,FieldMap})
+      map=maps[mapname]
+      value=seed
+      println(value)
+      while true
+            found=nothing
+            #for p in value.from_value:value.until_value
+            for elem in map.map_data
+                  if value.from_value>= elem.source && value.from_value < (elem.source  + elem.count) 
+                        tmp=value.from_value + elem.destination - elem.source
+                        println("Got tmp ", tmp)
+                        if value.until_value>= elem.source && value.until_value < (elem.source  + elem.count) 
+                              tmp2=value.until_value + elem.destination - elem.source
+                              println("Got tm2p ", tmp2)
+                        else
+                              tmp2=(elem.destination  + elem.count) 
+                              println("Got tmp2 ", tmp2)
+                        end
+                        found=Pair(tmp, tmp2)
+                        break
+                  end
+            end
+                  #found=Pair(tmp, tmp2)
+            #end
+            if found==nothing
+                  found=value  # If it was not in special rules, use same value
+            end
+            value=found
+            mapname=map.to_type
+            if mapname=="location"
+
+                  println("VAL ", value)
+                  return value   # This is the value of location
+            end
+            map=maps[mapname]
+      end
+end
 
 function find_seed(location, mapname, maps::Dict{String,FieldMap})
       map=maps[mapname]
@@ -58,8 +96,8 @@ function find_seed(location, mapname, maps::Dict{String,FieldMap})
       while true
             found=-1
             for elem in map.map_data
-                  if value>= elem.source && value < (elem.source  + elem.count)
-                        found=value + elem.destination - elem.source
+                  if value>= elem.destination && value < (elem.destination  + elem.count)
+                        found=value + elem.source - elem.destination
                         break
                   end
             end
@@ -92,7 +130,23 @@ function process_seedlist(seedlist::Array{Int}, maps::Dict{String,FieldMap})
       return small
 end
 
+function pairwise_seedlist(seedlist::Array{Int})
+      seedpairlist=Array{Pair}(undef,0)
+      for i in  range(1,length(seedlist), step=2)
+            push!(seedpairlist, Pair(seedlist[i],(seedlist[i] + seedlist[i+1])))
 
+      end
+      println("Smallest ", seedpairlist)
+      return seedpairlist
+end
+
+function location_list(mapping::Dict{String,FieldMap})
+      nmap=Dict{String,FieldMap}()
+      for (key, val) in mapping
+            nmap[val.to_type]=val  
+      end
+      return nmap
+end
 
 function parse_file(file_name)
       allmaps=Dict{String,FieldMap}()
@@ -122,17 +176,70 @@ function parse_file(file_name)
             end
 
     end
-    #root=TreeNode("root", Array{TreeNode}(undef,0), 0, 0)
-    #tree=construct_tree(root, "seed", allmaps)
-    #println(tree)
-    #sort_seeds(seedlist, allmaps)
-    #return
-
+    ps=pairwise_seedlist(seedlist)
     
-    lowest=100000000000
-    for seed in seedlist
-      loc=find_location(seed, "seed", allmaps)
-      if loc<lowest
+    newmaps=location_list(allmaps)
+    map=newmaps["location"]
+    loclist=Array{Int}(undef,0)
+    first=true
+    for elem in map.map_data
+      if first
+            for i = 1:elem.destination
+                  #push!(loclist,i)
+                  sd=find_seed(i, "location", newmaps)
+                  for p in ps
+                        if sd>=p.from_value && sd<p.until_value
+                              println("-----")
+                              println("Found it ", p, " -> ", i)
+                              return
+                        end
+                  end
+            end
+            first=false
+      end
+      for i = elem.destination:elem.source
+            #push!(loclist,i)
+            sd=find_seed(i, "location", newmaps)
+            for p in ps
+                  if sd>=p.from_value && sd<p.until_value
+                        println("-----")
+                        println("Found it ", p, " -> ", i)
+                        return
+                  end
+            end
+      end
+    end
+    return
+    loclist=sort(loclist)
+    println(loclist)
+    #return
+    #println(loclist)
+
+    for id in loclist
+      sd=find_seed(id, "location", newmaps)
+      #println(sd, " =Z> ", id)
+      for p in ps
+            if sd>=p.from_value && sd<p.until_value
+                  println("-----")
+                  println("Found it ", p, " -> ", id)
+                  return
+            end
+      end
+   
+    end
+    return
+    for id in map.map_data
+      println(id)
+    end
+    return 
+    pairlist=pairwise_seedlist(seedlist)
+   
+    lowest=nothing
+    for seed in pairlist
+      loc=find_location_pair(seed, "seed", allmaps)
+      if lowest == nothing
+            lowest=loc
+      elseif lowest.from_value <loc.from_value
             lowest=loc
       end
       println(" Seed ", seed, " with loc ", loc)
@@ -141,6 +248,6 @@ function parse_file(file_name)
     
 end
 
-parse_file("./src/sample.txt")
+parse_file("./src/input.txt")
 
 end
